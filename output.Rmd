@@ -1,0 +1,66 @@
+---
+title: "R Notebook"
+output: html_document
+---
+
+# Load Packages
+
+```{r}
+library(tidyverse)
+```
+
+# Load Data
+
+```{r, cache = TRUE, echo = FALSE}
+df_crimes <- read_csv("data/Crimes_-_One_year_prior_to_present.csv", 
+                      col_types = cols())
+df_resto <- read_csv("data/Restaurant.csv",
+                     col_types = cols())
+```
+
+
+# Look at data
+```{r}
+head(df_crimes)
+```
+
+Now we subset to get a count of the number of restaurants that went out of business.
+```{r}
+closures <- df_resto %>%
+    #rename Inspection.Date and License Number
+    rename(License_Num = 'License #',
+           Date = `Inspection Date`) %>%
+    #convert times
+    mutate(Date = lubridate::mdy(Date)) %>%
+    #TODO: filter so both datasets have the same time range?
+    filter(Date >= "2017-01-01" & Date <= "2018-06-28") %>%
+    #filter for restaurant closures
+    filter(Results == "Out of Business") %>% #gross not boolean
+    #one row = 1 restaurant closure
+    distinct(License_Num , Date, .keep_all = TRUE) %>%
+    #summarise by date %>%
+    group_by(Date)
+```
+
+
+```{r}
+by_zip <- closures %>%
+    group_by(Zip) %>%
+    summarize(Total_Closures = n()) %>%
+    arrange(desc(Total_Closures))
+```
+
+```{r}
+by_zip %>%
+    head() %>%
+    knitr::kable()
+```
+
+```{r}
+plot <- by_zip %>%
+    head(10) %>%
+    ggplot(aes(x = as.character(Zip), y = Total_Closures)) +
+    geom_col()
+plot
+```
+
